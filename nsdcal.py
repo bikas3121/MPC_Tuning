@@ -12,7 +12,7 @@ import math
 from scipy import signal
 from balreal import balreal
 
-def nsdcal(X, YQns, MLns, Qstep, Vmin, Nb, QMODEL, bns, ans):
+def nsdcal(X, YQns, MLns, Qstep, Vmin, Nb, QMODEL, AM, BM, CM, DM):
     """
     X
         input signal
@@ -37,26 +37,6 @@ def nsdcal(X, YQns, MLns, Qstep, Vmin, Nb, QMODEL, bns, ans):
     # Hns_tf = signal.TransferFunction(b, a, dt=1)  # double integrator
     # Mns_tf = signal.TransferFunction(a-b, a, dt=1)  # Mns = 1 - Hns
     # Mns = Mns_tf.to_ss()
-    match 1:
-        case 1:
-            AM = np.array([[0.0, 0.0], [1.0, 0.0]])
-            BM = np.array([[2.0], [0.0]])
-            CM = np.array([[1.0, -0.5]])
-            DM = np.array([[0.0]])
-        case 2:  # Optimal NSF for 2nd Order butterworth filter
-            AM = np.array([[-0.2376, -0.1816],[0.9999, 0.0004]])
-            BM = np.array([[1.0],[0.0]])
-            CM = np.array([[-1.3086, 0.2312]])
-            DM= np.array([1.0])
-        case 3:  # Optimal NSF for 3nd Order butterworth filter
-            AM = np.array([[0.3538, -0.3666, 0.0330], [1.0000,  0,  0], [ 0, 1.0000 , 0]])
-            BM = np.array([ [1], [0],[0]])
-            CM = np.array([[-1.4063,    0.8164 ,  -0.2451]])
-            DM = np.array([[0.0]])
-    # Ad = AM 
-    # Bd = BM
-    # Cd = CM
-    # Dd = DM
     # Ad = Mns.A
     # Bd = Mns.B
     # Cd = Mns.C

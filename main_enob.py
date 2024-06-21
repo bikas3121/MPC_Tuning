@@ -17,14 +17,16 @@ import statistics
 
 from DirectQantization import quantise_signal, generate_code, generate_dac_output
 from  quantiser_configurations import quantiser_configurations, get_measured_levels
-# from  quantiser_configurations2 import quantiser_configurations, get_measured_levels
+
 from MHOQ import MHOQ
-from MHOQ_BIN import MHOQ_BIN
+from nsdcal import nsdcal, noise_shaping
+from dsm import dsm
+
+
 from signalProcessing import signalProcessing as SP
 from plot_variance import plot_variance
 from process_sim_output import process_sim_output
-from nsdcal import nsdcal, noise_shaping
-
+from balreal import balreal
 # Generate test signal
 def test_signal(SCALE, MAXAMP, FREQ, Rng,  OFFSET, t):
     """
@@ -54,11 +56,11 @@ SINAD_COMP_SEL = sinad_comp.CFIT
 Qconfig = 5
 Nb, Mq, Vmin, Vmax, Rng, Qstep, YQ, Qtype = quantiser_configurations(Qconfig)
 # %% Sampling frequency and rate
-Fs = 1e7
+Fs = 1e6
 Ts = 1/Fs
 
 # %% Output low-pass filter cutoff order and cutoff frequency
-N_lp = 3
+N_lp = 2
 Fc_lp = 1e5 # cutoff frequency
 # %% Carrier signal
 Xcs_SCALE = 100
@@ -68,11 +70,11 @@ Xcs_FREQ = 999
 
 match 1:
     case 1:  # specify duration as number of samples and find number of periods
-        Nts = 1e6  # no. of time samples
+        Nts = 1e5  # no. of time samples
         Np = np.ceil(Xcs_FREQ*Ts*Nts).astype(int) # no. of periods for carrier
 
     case 2:  # specify duration as number of periods of carrier
-        Np = 5 # no. of periods for carrier
+        Np = 50 # no. of periods for carrier
         
 Npt = 1  # no. of carrier periods to use to account for transients
 Np = Np + Npt
@@ -85,8 +87,8 @@ SIGNAL_MAXAMP = Rng/2 - Qstep  # make headroom for noise dither (see below)
 SIGNAL_OFFSET = -Qstep/2  # try to center given quantiser type
 Xcs = test_signal(Xcs_SCALE, SIGNAL_MAXAMP, Xcs_FREQ, Rng,  SIGNAL_OFFSET, t)
 
-fig, ax = plt.subplots()
-ax.plot(t, Xcs)
+# fig, ax = plt.subplots()
+# ax.plot(t, Xcs)
 
 # %% Reconstruction filter parameters 
 match 1:
@@ -98,20 +100,16 @@ match 1:
         butter = signal.dlti(*signal.butter(N_lp, Wn,'low'))
         w, h = signal.dimpulse(butter, n = 10)  #w - angular frequency, h= frequency response
         h = h[0]  
+
     case 2:  # % Perception filter - Goodwin Paper -  equivalent low pass filter
         b = np.array([1, 0.91, 0])
         a = np.array([1 , -1.335, 0.644])
         percep = signal.dlti(b, a)
         w, h = signal.dimpulse(percep, n = 10)  #w - angular frequency, h= frequency response
         h = h[0]  
-        # Mns_tf = signal.TransferFunction( bns, ans, dt=1)  # Mns = 1 - Hns
-        # Mns = Mns_tf.to_ss()
-        # A1, B1, C1, D1 = balreal(Mns.A, Mns.B, Mns.C, Mns.D)
-    case 3:
-        b = np.array([1.0000 ,  -0.3538,    0.3666,   -0.0330])
-        a = np.array([1.0000 ,  -1.7601,    1.1830,   -0.2781])
 
-A, B, C, D = signal.tf2ss(b,a) # Transfer function to StateSpace
+A1, B1, C1, D1 = signal.tf2ss(b,a) # Transfer function to StateSpace
+A, B, C, D = balreal(A1, B1, C1, D1)
 e, v = np.linalg.eig(A)
 # %% Quantiser levels : Ideal and Measured
 # Ideal quantiser levels
@@ -120,14 +118,29 @@ YQns = YQ
 MLns = get_measured_levels(Qconfig)
 
 
+# %% Optimal NTF 
+br_ontf = np.array([1.0000,  -1.7601,   1.1830,   -0.2781])
+ar_ontf = np.array([1.0000,   -0.3538,    0.3666,   -0.0330])
+
+# %% Optimal NSF
+bf_onsf =  ar_ontf - br_ontf
+af_onsf = ar_ontf
+[AF_ONSF, BF_ONSF, CF_ONSF, DF_ONSF] = signal.tf2ss(bf_onsf, af_onsf)
+
+#% corresponding low pass filter 
+bh_onsf = ar_ontf
+ah_onsf = br_ontf
+[AH_ONSF, BH_ONSF, CH_ONSF, DH_ONSF] = signal.tf2ss(bh_onsf, ah_onsf)
+[AH_ONSF, BH_ONSF, CH_ONSF, DH_ONSF] = balreal(AH_ONSF, BH_ONSF, CH_ONSF, DH_ONSF)
 # %% LIN methods on/off
-DIR_ON = False
+DIR_ON = True
+DSM_ON = True
 NSD_ON = True
-MPC_ON = False 
+MPC_ON = True
 
 # %% Quatniser Model
 # Quantiser model: 1 - Ideal , 2- Calibrated
-QMODEL = 2
+QMODEL = 1          
 # %% Direct Quantization 
 if DIR_ON:
     C_DIR = quantise_signal(Xcs, Qstep, YQns, Qtype).astype(int)
@@ -137,31 +150,57 @@ if DIR_ON:
         case 2:
             Xcs_DIR = generate_dac_output(C_DIR, MLns)
 
+# %% Delta Sigma Modulator
+if DSM_ON:
+    C_DSM = dsm(Xcs, Qstep, YQns)
+    match QMODEL:
+        case 1:
+            Xcs_DSM = generate_dac_output(C_DSM, YQns)
+        case 2:
+            Xcs_DSM = generate_dac_output(C_DSM, MLns)
+
+
+
 # %% NSD CAL
 if NSD_ON:
     match 2:
         case 1:
-            bns = np.array([1, -2, 1])
-            ans = np.array([1, 0, 0])
+            AM = np.array([[0.0, 0.0], [1.0, 0.0]])
+            BM = np.array([[2.0], [0.0]])
+            CM = np.array([[1.0, -0.5]])
+            DM = np.array([[0.0]])
         case 2:
-            bns = np.array([0,  1.4063,    -0.8164,   0.2451])
-            ans =np.array([1.0000,   -0.3538,    0.3666,   -0.0330])
+            AM = AF_ONSF
+            BM = BF_ONSF
+            CM = CF_ONSF
+            DM = DF_ONSF
 
-    Ans, Bns, Cns, Dns = signal.tf2ss(b,a) # Transfer function to StateSpace
-    ens, vns = np.linalg.eig(Ans)
     # C_NSD = noise_shaping(Nb, Xcs, bns, ans, Qstep, YQns, MLns, Vmin, QMODEL)  
-    C_NSD = nsdcal(Xcs, YQns, MLns, Qstep, Vmin, Nb, QMODEL, bns, ans)
-    # C_NSD = generate_code(Nb, q_NSD, Qstep, Qtype)
+    C_NSD = nsdcal(Xcs, YQns, MLns, Qstep, Vmin, Nb, QMODEL, AM, BM, CM, DM)
     match QMODEL:
         case 1:
             Xcs_NSD = generate_dac_output(C_NSD, YQns)
         case 2:
             Xcs_NSD = generate_dac_output(C_NSD, MLns) 
+
+
 # %% MPC : Prediction horizon
-N = 2
+N = 1
 if MPC_ON:
-    # #%% Numerical MPC: Solving MHOQ numerically using Gurobi MILP formulation
+    match 1:
+        case 1:
+            AH = A
+            BH = B
+            CH = C
+            DH = D
+        case 2:
+            AH = AH_ONSF
+            BH = BH_ONSF
+            CH = CH_ONSF 
+            DH = DH_ONSF 
+    # #%% Numerical MPC: Solving MHOQ numerically using Gurobi MILP formulation 
     MHOQ = MHOQ(Nb, Qstep, QMODEL, A, B, C, D)
+
     # # Binary Formulation - For smaller number of bits only
     # # MHOQ = MHOQ_BIN(Nb, Qstep, QMODEL, A, B, C, D)
     # Get Codes
@@ -187,6 +226,10 @@ if DIR_ON:
     F_Xcs_DIR, err_DIR, var_DIR = sp.signalFilter(Xcs_DIR)
     yd = Xcs_DIR[0,:len(tm)].squeeze()
     yd_avg, ENOB_M = process_sim_output(tm, yd, Fc_lp, Fs, N_lp, TRANSOFF, SINAD_COMP_SEL, True, 'linear')
+if DSM_ON:
+    F_Xcs_DSM, err_DSM, var_DSM = sp.signalFilter(Xcs_DSM)
+    ydsm = Xcs_DSM[0,:len(tm)].squeeze()
+    ydsm_avg, ENOB_M = process_sim_output(tm, ydsm, Fc_lp, Fs, N_lp, TRANSOFF, SINAD_COMP_SEL, True, 'linear')
 if NSD_ON:
     F_Xcs_NSD, err_NSD, var_NSD = sp.signalFilter(Xcs_NSD)
     yn = Xcs_NSD[0,:len(tm)].squeeze()
@@ -204,8 +247,8 @@ if MPC_ON:
     # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
     # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
     # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
-if DIR_ON and NSD_ON and MPC_ON:
-    plot_variance(var_dir = var_DIR,  var_nsd = var_NSD, var_mhoq = var_MHOQ)
+# if DIR_ON and NSD_ON and MPC_ON:
+#     plot_variance(var_dir = var_DIR,  var_nsd = var_NSD, var_mhoq = var_MHOQ)
     # fig, ax = plt.subplots()
     # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
     # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())

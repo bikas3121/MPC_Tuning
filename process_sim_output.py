@@ -14,7 +14,7 @@ def process_sim_output(ty, y, Fc, Fs, Nf, TRANSOFF, SINAD_COMP_SEL, plot=False, 
     #print(ty.shape)
     #print(y.shape)
     
-    match 1:
+    match 2:
         case 1:
             Wc = 2*np.pi*Fc
             b, a = signal.butter(Nf, Wc, 'lowpass', analog=True)  # filter coefficients
