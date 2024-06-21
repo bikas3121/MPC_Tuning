@@ -60,7 +60,7 @@ Fs = 1e6
 Ts = 1/Fs
 
 # %% Output low-pass filter cutoff order and cutoff frequency
-N_lp = 2
+N_lp = 3
 Fc_lp = 1e5 # cutoff frequency
 # %% Carrier signal
 Xcs_SCALE = 100
@@ -243,18 +243,26 @@ if MPC_ON:
 
 # if DIR_ON and NSD_ON:
 #     plot_variance(var_dir = var_DIR,  var_nsd = var_NSD)
-    # fig, ax = plt.subplots()
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
+#     fig, ax = plt.subplots()
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
 # if DIR_ON and NSD_ON and MPC_ON:
 #     plot_variance(var_dir = var_DIR,  var_nsd = var_NSD, var_mhoq = var_MHOQ)
-    # fig, ax = plt.subplots()
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
-    # ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_MHOQ.squeeze())
+#     fig, ax = plt.subplots()
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
+#     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_MHOQ.squeeze())
 
+if DIR_ON and NSD_ON and MPC_ON and DSM_ON:
+    plot_variance(var_dir = var_DIR,  var_dsm = var_DSM, var_nsd = var_NSD, var_mhoq = var_MHOQ)
+    fig, ax = plt.subplots()
+    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
+    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
+    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DSM)], F_Xcs_DSM.squeeze())
+    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
+    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_MHOQ)], F_Xcs_MHOQ.squeeze())
 # %% Quantisation error
 # q_mhoq = Xcs[0:Xcs_MHOQ.size] - Xcs_MHOQ.squeeze()
 # fig, ax = plt.subplots()
