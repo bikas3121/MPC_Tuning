@@ -27,6 +27,7 @@ from signalProcessing import signalProcessing as SP
 from plot_variance import plot_variance
 from process_sim_output import process_sim_output
 from balreal import balreal
+from welch_psd import welch_psd
 # Generate test signal
 def test_signal(SCALE, MAXAMP, FREQ, Rng,  OFFSET, t):
     """
@@ -74,7 +75,7 @@ match 1:
         Np = np.ceil(Xcs_FREQ*Ts*Nts).astype(int) # no. of periods for carrier
 
     case 2:  # specify duration as number of periods of carrier
-        Np = 50 # no. of periods for carrier
+        Np = 15 # no. of periods for carrier
         
 Npt = 1  # no. of carrier periods to use to account for transients
 Np = Np + Npt
@@ -91,7 +92,7 @@ Xcs = test_signal(Xcs_SCALE, SIGNAL_MAXAMP, Xcs_FREQ, Rng,  SIGNAL_OFFSET, t)
 # ax.plot(t, Xcs)
 
 # %% Reconstruction filter parameters 
-match 1:
+match 3:
     case 1:
         Fc_lpd = Fc_lp
         Wn = Fc_lpd / (Fs / 2)
@@ -107,6 +108,19 @@ match 1:
         percep = signal.dlti(b, a)
         w, h = signal.dimpulse(percep, n = 10)  #w - angular frequency, h= frequency response
         h = h[0]  
+    
+    case 3: # LPF derived from optimal NTF Optimal NTF
+        # Optimal NTF
+        nsf_num = scipy.io.loadmat('Optimal_NSF/NSF_num_100kHz_1MHz_46|5Mueta.mat')
+        nsf_den = scipy.io.loadmat('Optimal_NSF/NSF_den_100kHz_1MHz_46|5Mueta.mat')
+        bn = nsf_num['br']
+        an = nsf_den['ar']
+
+        # Corresponding LPF
+        b = an.squeeze()
+        a = bn.squeeze()
+        # b = np.array([1.000000000000000,  -0.002620412615210,   0.333346713132052,  -0.000221418094866])
+        # a = np.array([1.000000000000000 , -1.760067202391505 ,  1.182955682925048,  -0.278095097319369])
 
 A1, B1, C1, D1 = signal.tf2ss(b,a) # Transfer function to StateSpace
 A, B, C, D = balreal(A1, B1, C1, D1)
@@ -116,31 +130,15 @@ e, v = np.linalg.eig(A)
 YQns = YQ     
 # Measured quantiser levels
 MLns = get_measured_levels(Qconfig)
-
-
-# %% Optimal NTF 
-br_ontf = np.array([1.0000,  -1.7601,   1.1830,   -0.2781])
-ar_ontf = np.array([1.0000,   -0.3538,    0.3666,   -0.0330])
-
-# %% Optimal NSF
-bf_onsf =  ar_ontf - br_ontf
-af_onsf = ar_ontf
-[AF_ONSF, BF_ONSF, CF_ONSF, DF_ONSF] = signal.tf2ss(bf_onsf, af_onsf)
-
-#% corresponding low pass filter 
-bh_onsf = ar_ontf
-ah_onsf = br_ontf
-[AH_ONSF, BH_ONSF, CH_ONSF, DH_ONSF] = signal.tf2ss(bh_onsf, ah_onsf)
-[AH_ONSF, BH_ONSF, CH_ONSF, DH_ONSF] = balreal(AH_ONSF, BH_ONSF, CH_ONSF, DH_ONSF)
 # %% LIN methods on/off
-DIR_ON = True
-DSM_ON = True
+DIR_ON = False
+DSM_ON = False
 NSD_ON = True
 MPC_ON = True
 
 # %% Quatniser Model
 # Quantiser model: 1 - Ideal , 2- Calibrated
-QMODEL = 1          
+QMODEL = 1
 # %% Direct Quantization 
 if DIR_ON:
     C_DIR = quantise_signal(Xcs, Qstep, YQns, Qtype).astype(int)
@@ -152,28 +150,19 @@ if DIR_ON:
 
 # %% Delta Sigma Modulator
 if DSM_ON:
-    C_DSM = dsm(Xcs, Qstep, YQns)
+    C_DSM = dsm(Nb, Xcs, Qstep, QMODEL,  YQns, MLns)
     match QMODEL:
         case 1:
             Xcs_DSM = generate_dac_output(C_DSM, YQns)
         case 2:
             Xcs_DSM = generate_dac_output(C_DSM, MLns)
-
-
-
 # %% NSD CAL
 if NSD_ON:
-    match 2:
+    match 1:
         case 1:
-            AM = np.array([[0.0, 0.0], [1.0, 0.0]])
-            BM = np.array([[2.0], [0.0]])
-            CM = np.array([[1.0, -0.5]])
-            DM = np.array([[0.0]])
-        case 2:
-            AM = AF_ONSF
-            BM = BF_ONSF
-            CM = CF_ONSF
-            DM = DF_ONSF
+            bn = b-a
+            an = b
+            AM,BM,CM,DM = signal.tf2ss(bn,an)
 
     # C_NSD = noise_shaping(Nb, Xcs, bns, ans, Qstep, YQns, MLns, Vmin, QMODEL)  
     C_NSD = nsdcal(Xcs, YQns, MLns, Qstep, Vmin, Nb, QMODEL, AM, BM, CM, DM)
@@ -183,9 +172,10 @@ if NSD_ON:
         case 2:
             Xcs_NSD = generate_dac_output(C_NSD, MLns) 
 
+Q_NSD = (Xcs - Xcs_NSD ).squeeze()
 
 # %% MPC : Prediction horizon
-N = 1
+N = 2
 if MPC_ON:
     match 1:
         case 1:
@@ -193,25 +183,22 @@ if MPC_ON:
             BH = B
             CH = C
             DH = D
-        case 2:
-            AH = AH_ONSF
-            BH = BH_ONSF
-            CH = CH_ONSF 
-            DH = DH_ONSF 
+        # case 2:
+        #     AH = np.array([[1.760067202088132,  -1.182955682489591,   0.278095097117740], [1.0, 0, 0], [0, 1.0 , 0]])
+        #     BH = np.array([[1], [0], [0]])
+        #     CH = np.array([1.757446789736872,  -0.849608969382354,   0.277873679062878]) 
+        #     DH = np.array([1])
     # #%% Numerical MPC: Solving MHOQ numerically using Gurobi MILP formulation 
-    MHOQ = MHOQ(Nb, Qstep, QMODEL, A, B, C, D)
-
-    # # Binary Formulation - For smaller number of bits only
-    # # MHOQ = MHOQ_BIN(Nb, Qstep, QMODEL, A, B, C, D)
+    MHOQ = MHOQ(Nb, Qstep, QMODEL, AH, BH, CH, DH)
     # Get Codes
-    C_MHOQ = MHOQ.get_codes(N, Xcs, YQns, MLns)
+    C_MHOQ, Q_MPC1 = MHOQ.get_codes(N, Xcs, YQns, MLns)
     match QMODEL:
         case 1:
             Xcs_MHOQ = generate_dac_output(C_MHOQ, YQns)
         case 2:
-
             Xcs_MHOQ = generate_dac_output(C_MHOQ, MLns)
-
+    
+    Q_MPC = Xcs[0:len(Xcs)-N] - Xcs_MHOQ
 # %% Signal Processing
 tm = t[:Xcs.size - N]
 
@@ -255,20 +242,48 @@ if MPC_ON:
 #     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
 #     ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_MHOQ.squeeze())
 
-if DIR_ON and NSD_ON and MPC_ON and DSM_ON:
-    plot_variance(var_dir = var_DIR,  var_dsm = var_DSM, var_nsd = var_NSD, var_mhoq = var_MHOQ)
-    fig, ax = plt.subplots()
-    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs.squeeze())
-    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DIR)], F_Xcs_DIR.squeeze())
-    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_DSM)], F_Xcs_DSM.squeeze())
-    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_NSD)], F_Xcs_NSD.squeeze())
-    ax.plot(t[TRANSOFF: TRANSOFF + len(F_Xcs_MHOQ)], F_Xcs_MHOQ.squeeze())
+if NSD_ON and MPC_ON:
+    plot_variance(var_nsd = var_NSD, var_mhoq = var_MHOQ)
 # %% Quantisation error
 # q_mhoq = Xcs[0:Xcs_MHOQ.size] - Xcs_MHOQ.squeeze()
 # fig, ax = plt.subplots()
 # ax.plot(tm, q_mhoq)
 
-""" with open("quant_err_butter_2nd_100k_fs10mhz_ideal.csv", 'w') as f1:
-    wrt = csv.writer(f1, delimiter = '\t')
-    wrt.writerow(q_mhoq) """
+# with open("quant_error/Q_NSD_6B_U.csv", 'w') as f1:
+#     wrt = csv.writer(f1, delimiter = '\n')
+#     wrt.writerow(Q_NSD) 
 
+# with open("quant_error/Q_MPC_6B_U.csv", 'w') as f1:
+#     wrt = csv.writer(f1, delimiter = '\n')
+#     wrt.writerow(Q_MPC) 
+# %%
+# import matplotlib.mlab as mlab
+# fig, ax = plt.subplots()
+# ax.psd(Q_NSD.squeeze(), NFFT=150, Fs=Fs, window=mlab.window_none, pad_to=512, noverlap=75,
+#         scale_by_freq=True)
+# ax.set_title('Welch')
+# ax.grid(True)
+# plt.show()
+
+
+# fig, ax = plt.subplots()
+# ax.psd(Q_MPC.squeeze(), NFFT=150, Fs=Fs, window=mlab.window_none, pad_to=512, noverlap=75,
+#         scale_by_freq=True)
+# ax.set_title('Welch')
+# ax.grid(True)
+# plt.show()
+# %%
+# import welch_psd
+# Pxx, f = welch_psd(Q_NSD, 10, Fs)
+# fig, ax = plt.subplots()
+# ax.loglog(f, Pxx, lw=0.5)
+# ax.set_xlabel('Frequency (Hz)')
+# ax.set_ylabel('Power (V$^2$/Hz)')
+
+# Pxx, f = welch_psd(Q_MPC.squeeze(), 10, Fs)
+# fig, ax = plt.subplots()
+# ax.loglog(f, Pxx, lw=0.5)
+# ax.set_xlabel('Frequency (Hz)')
+# ax.set_ylabel('Power (V$^2$/Hz)')
+
+# %%

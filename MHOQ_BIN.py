@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Run DAC simulations using various linearisation methods
@@ -16,7 +17,8 @@ from gurobipy import GRB
 import tqdm
 
 
-class MHOQ:
+
+class MHOQ_BIN:
     def __init__(self, Nb, Qstep, QMODEL,  A, B, C, D):
         """
         Constructor for the Model Predictive Controller.
@@ -42,25 +44,19 @@ class MHOQ:
         """
         x_iplus1 = self.A @ st + self.B * con
         return x_iplus1
-
-    
     
     # def get_codes(self, Xcs, N_PRED, YQns, MLns)
     def get_codes(self, N_PRED, Xcs, YQns, MLns ):
-         
-        # Xcs = Xcs.squeeze() /self.Qstep  + 2**(self.Nb-1)
+
 
         match self.QMODEL:
             case 1:
-                QLS = YQns.squeeze()
+                QL = YQns.squeeze()
             case 2:
-                QLS = MLns.squeeze()
+                QL = MLns.squeeze()
 
-        # QLS =   QLS.squeeze() /self.Qstep  + 2**(self.Nb-1)
+        # Storage container for code
         C = []
-
-        # Quantisation error
-        QE_MPC = []
 
         # Loop length
         len_MPC = Xcs.size - N_PRED
@@ -75,7 +71,7 @@ class MHOQ:
         for j in tqdm.tqdm(range(len_MPC)):
 
             m = gp.Model("MPC- INL")
-            u = m.addMVar(N_PRED, vtype=GRB.INTEGER, name= "u", lb = 0, ub =  2**self.Nb-1) # control variable
+            u = m.addMVar((2**self.Nb, N_PRED), vtype=GRB.BINARY, name= "u") # control variable
             x = m.addMVar((x_dim*(N_PRED+1),1), vtype= GRB.CONTINUOUS, lb = -GRB.INFINITY, ub = GRB.INFINITY, name = "x")  # State varible 
 
 
@@ -87,10 +83,11 @@ class MHOQ:
             for i in range(N_PRED):
                 k = x_dim * i
                 st = x[k:k+x_dim]
-                con = u[i] - Xcs[j+i]
+                bin_con =  QL.reshape(1,-1) @ u[:,i].reshape(-1,1) 
+                con = bin_con - Xcs[j+i]
 
                 # Objective update
-                e_t = self.C @ st + self.D * con
+                e_t = self.C @ x[k:k+x_dim] + self.D * con
                 Obj = Obj + e_t * e_t
 
                 # Constraints update
@@ -98,6 +95,11 @@ class MHOQ:
                 st_next = x[k+x_dim:k+2*x_dim]
                 m.addConstr(st_next == f_value)
 
+                # Binary varialble constraint
+                consi = gp.quicksum(u[:,i]) 
+                m.addConstr(consi == 1)
+        # m.addConstr(consi >= 0.98)
+        # m.addConstr(consi <= 1.02
             # Gurobi model update
             m.update
 
@@ -108,8 +110,8 @@ class MHOQ:
             m.Params.LogToConsole = 0
 
             # Gurobi setting for precision  
-            # m.Params.IntFeasTol = 1e-9
-            # m.Params.IntegralityFocus = 1
+            m.Params.IntFeasTol = 1e-9
+            m.Params.IntegralityFocus = 1
 
             # Optimization 
             m.optimize()
@@ -119,18 +121,33 @@ class MHOQ:
             values = m.getAttr("X",allvars)
             values = np.array(values)
 
-            # Extract only the value of the variable "u", value of the variable "x" are not needed
-            C_MPC = values[0:N_PRED]
+            # Variable dimension
+            nr, nc = u.shape
+            u_val = values[0:nr*nc]
+            u_val = np.reshape(u_val, (2**self.Nb, N_PRED))
 
-            # Ideally they should be integral, but gurobi generally return them in floating point values according to the precision tolorence set: m.Params.IntFeasTol
-            # Round off to nearest integers
-            C_MPC = C_MPC.astype(int)
-
-            # Store only the first value /code
+            # Extract Code
+            C_MPC = []
+            for i in range(N_PRED):
+                c1 = np.nonzero(u_val[:,i])[0][0]
+                c1 = int(c1)
+                C_MPC.append(c1)
+            C_MPC = np.array(C_MPC)
             C.append(C_MPC[0])
 
-            # Get DAC level according to the coe
-            U_opt = QLS[C_MPC[0]] 
+            U_opt = QL[C_MPC[0]] 
+            # # Extract only the value of the variable "u", value of the variable "x" are not needed
+            # C_MPC = values[0:N_PRED]
+
+            # # Ideally they should be integral, but gurobi generally return them in floating point values according to the precision tolorence set: m.Params.IntFeasTol
+            # # Round off to nearest integers
+            # C_MPC = C_MPC.astype(int)
+
+            # # Store only the first value /code
+            # C.append(C_MPC[0])
+
+            # # Get DAC level according to the coe
+            # U_opt = QLS[C_MPC[0]] 
 
             # State prediction 
             con = U_opt - Xcs[j]
@@ -139,9 +156,4 @@ class MHOQ:
             # State update for subsequent prediction horizon 
             init_state = x0_new
 
-            # Store qunatisation error
-            QE_MPC.append(con)
-
-        return np.array(C).reshape(1,-1), np.array(QE_MPC)
-
-
+        return np.array(C).reshape(1,-1)

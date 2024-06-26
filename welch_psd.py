@@ -6,7 +6,7 @@
 @date: 22.02.2024
 @license: BSD 3-Clause
 """
-
+# %%
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -75,6 +75,9 @@ def main():
     x = x + 0.5*x**2 + 0.25*x**3 + 0.125*x**4 + 0.0625*x**5
     x = x + 0.01*np.random.randn(t.size)
 
+
+
+    
     Pxx, f = welch_psd(x, 10, Fs)
 
     f_cmp, Pxx_cmp = signal.welch(x, fs=Fs, nperseg=t.size/10) # compare to library
@@ -86,5 +89,9 @@ def main():
     plt.ylabel('Power (V$^2$/Hz)')
     plt.show()
 
+    fig, ax = plt.subplots()
+    ax.plot(t, x)
 if __name__ == "__main__":
     main()
+
+# %%
