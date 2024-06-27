@@ -32,7 +32,7 @@ mu_e  = sdpvar(1);
 
 
 % Constraints
-mu_eta = 9.2^2;
+mu_eta = 1.5^2;
 MA = [Ah*Pf + Bh*Wf , Ah; L ,Pg*Ah];
 MB = [Bh ; Wg];
 MC = [Ch*Pf + Dh*Wf ,  Ch];
@@ -123,36 +123,36 @@ N = Fs/2;
 
 
 
-% 
-% sl = length(hlp)/2;
-% figure(Name="Butterworth 2nd order")
-% plot(wlp(1:sl)/2*pi*1e-3, 20*log10(abs(hlp(1:sl))));
-% hold on 
-% plot(wf(1:sl)/2*pi*1e-3, 20*log10(abs(hf(1:sl))));
-% hold on 
-% plot(wn(1:sl)/2*pi*1e-3, 20*log10(abs(hn(1:sl))));
-% 
-% legend("LPF ($H(z)$)","NSF ($F(z)$)","NTF ($R(z)$)",'Interpreter','latex')
-% xlabel('Frequency (kHz)')
-% ylabel("Magnitude (dB)")
-% ylim([-50, 50])
-% grid minor
-% 
-% 
-% [hho,who] = freqz(ar,br, N, 'half', Fs);
-% [hfo,wfo] = freqz(ar - br,ar, N, 'half', Fs);
-% [hntf,wntf] = freqz(br,ar, N, 'half', Fs);
-% figure
-% plot(who(1:sl)/2*pi*1e-3, 20*log10(abs(hho(1:sl))));
-% hold on 
-% plot(wfo(1:sl)/2*pi*1e-3, 20*log10(abs(hfo(1:sl))));
-% hold on 
-% plot(wntf(1:sl)/2*pi*1e-3, 20*log10(abs(hntf(1:sl))));
-% legend("LPF ($H_{opt}(z))$","NSF ($F_{opt}(z)$)", "NTF ($R_{opt}(z)$)", 'Interpreter','latex')
-% xlabel('Frequency (kHz)')
-% ylabel("Magnitude (dB)")
-% ylim([-50,50])
-% grid minor
+
+sl = length(hlp)/2;
+figure(Name="Butterworth 2nd order")
+plot(wlp(1:sl)/2*pi*1e-3, 20*log10(abs(hlp(1:sl))));
+hold on 
+plot(wf(1:sl)/2*pi*1e-3, 20*log10(abs(hf(1:sl))));
+hold on 
+plot(wn(1:sl)/2*pi*1e-3, 20*log10(abs(hn(1:sl))));
+
+legend("LPF ($H(z)$)","NSF ($F(z)$)","NTF ($R(z)$)",'Interpreter','latex')
+xlabel('Frequency (kHz)')
+ylabel("Magnitude (dB)")
+ylim([-50, 50])
+grid minor
+
+
+[hho,who] = freqz(ar,br, N, 'half', Fs);
+[hfo,wfo] = freqz(ar - br,ar, N, 'half', Fs);
+[hntf,wntf] = freqz(br,ar, N, 'half', Fs);
+figure
+plot(who(1:sl)/2*pi*1e-3, 20*log10(abs(hho(1:sl))));
+hold on 
+plot(wfo(1:sl)/2*pi*1e-3, 20*log10(abs(hfo(1:sl))));
+hold on 
+plot(wntf(1:sl)/2*pi*1e-3, 20*log10(abs(hntf(1:sl))));
+legend("LPF ($H_{opt}(z))$","NSF ($F_{opt}(z)$)", "NTF ($R_{opt}(z)$)", 'Interpreter','latex')
+xlabel('Frequency (kHz)')
+ylabel("Magnitude (dB)")
+ylim([-50,50])
+grid minor
 
 
 
