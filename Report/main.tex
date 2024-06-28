@@ -137,7 +137,6 @@ For moving horison implementation, the optimisation problem is defined as the pr
 		&e(t) = Cx(t) + w(t)-y(t)	\label{eq:optconst2}	\\
 		&y(t) \in \mathbb{U}. \label{eq:optconst3}
 	\end{align}
-\newpage
 \subsection{Alternative binary formulation}
 The optimization problem \eqref{eq:optobj1}-\eqref{eq:optconst3} can be reformulated as an optimization problem with the binary variables. Let $\mathcal{B}$ be the number of bits.  $b_{i} = \{0,1\}$ and $Q_{i}$ $, i = \{0, 1, \ldots, 2^{\mathcal{B}}-1\}$, be the binary variables and quantisation levels, respectively. 
 \begin{align}
@@ -739,6 +738,114 @@ Consider a third order Butterworth filter with $Fc = 100 \mathit{kHz}$ and $Fs =
 	\hline
 	\end{tabular}		
 \end{table}
+
+
+\section{Closed Form Solution:}
+Let $N$ be the prediction horizon of the moving horizon implementation and $\mathbb{U}$ the quantisation levels. The $N$th power cartesian product of the set $\mathbb{U}$ for $N$ is defined as  $\mathbb{U}^{N}:= \mathbb{U} \ldots \times \ldots \mathbb{U}$. Let $n_{\mathbb{U}}$ represent the number of element in the set $\mathbb{U}$ i.e., number of quantisation levels, then the number of elements on the set $\mathbb{U}^{N}$ is $n_{\mathbb{U}}^{N}$. Also, let $v_{i}, i = \{1, 2, \ldots, n_{\mathbb{U}}^{N}\}$ represent the elements of the set $\mathbb{U}^{N}$. Then, the closed form solution of the moving horizon implementation of the optimisation problem \eqref{eq:optobj1}-\eqref{eq:optconst3} is 
+\begin{equation}
+	\mathbf{y}^{\ast}(k) = \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \big[\Psi \mathbf{w}(k) + \Gamma x(k)\big]
+\end{equation}
+where 
+\begin{align*}
+\mathbf{y}^{\ast}(k) = \begin{bmatrix}
+	y(k) \\ y(k+1) \\ \vdots \\ y(k+N-1)
+\end{bmatrix},
+\quad
+\mathbf{w}(k) = \begin{bmatrix}
+	w(k) \\ w(k+1) \\ \vdots \\ w(k+N-1)
+\end{bmatrix},
+\quad
+\Gamma = \begin{bmatrix}
+	C \\ CA \\ \vdots \\ CA^{N-1}
+\end{bmatrix},
+\quad
+\Psi = \begin{bmatrix}
+	h_{0} & 0 & \cdots & 0 \\
+	h_{1} & h_{0} & \ddots & \vdots \\
+	\vdots & \ddots & \ddots & 0 \\
+	h_{N-1} & \ldots & h_{1} & h_{0}
+\end{bmatrix},
+\end{align*}
+and $q_{\tilde{\mathbb{U}}^{N}}[.]$ represent the nearest neighbor vector quantisation (direct quantisation) and image of this mapping is the set 
+\begin{eqnarray*}
+	\tilde{\mathbb{U}}^{N} := \{\tilde{v}_{1}, \tilde{v}_{2}, \ldots, \tilde{v}_{r}\} \subset \mathbb{R}^{N}, \qquad r = n_{\mathbb{U}}^{N},
+\end{eqnarray*}
+with $\tilde{v}_{i} = \Psi v_{i}$ and $v_{i} \in \mathbb{U}^{N} = \{ v_{1}, v_{2}, \ldots, v_{n_{\mathbb{U}}}\}$. The elements of the matrices $\Psi$, $\{h_{0}, h_{1}, \ldots, h_{N-1}\}$ are the impulse response of the filter $H(z) = 1 + C(zI-A)^{-1}B$ and  $h_{0}=1$.
+
+
+The moving horizon implementation of the above solution is 
+\begin{equation}
+	\tilde{y}(k) =[1, 0, \ldots, 0]\mathbf{y}^{\ast}(k) = [1, 0, \ldots, 0] \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \big[\Psi \mathbf{w}(k) + \Gamma x(k)\big].
+\end{equation}
+Replacing $x(k) = (zI- A)^{-1}B (a(k) - u(k))$ and with further manipulation, we get, 
+\begin{equation}
+	\tilde{y}(k) =[1, 0, \ldots, 0] \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \big[\Psi \bigl\{ \mathcal{H}(z)  \mathbf{w}(k) - \big[ \mathcal{H}(z) -I\big] \mathbf{y}^{\ast}(k)\bigr\} \big].
+\end{equation}
+where 
+\begin{equation}
+	\mathcal{H}(z) = \begin{bmatrix}
+		1 + \mathcal{H}_{1}^{\prime}(z)	 & 0 &\ldots & \ldots & 0 \\
+		\mathcal{H}_{2}^{\prime}(z)	 & 1 & 0 & \ldots & 0 \\
+		\mathcal{H}_{3}^{\prime}(z)	 & 0 & 1 & \ldots & 0 \\
+		\vdots & \vdots & \ddots & \ddots & \vdots \\
+		\mathcal{H}_{N}^{\prime}(z)	 & 0 & 0 & \ldots & 1 \\
+	\end{bmatrix}	
+	\quad
+	\textrm{and}
+	\quad
+\mathcal{H}_{i}^{\prime}(z) = \big[\Psi^{-1}\big]_{i,\ast} \Gamma(zI- A)^{-1}B
+\end{equation}
+and $ \big[\Psi^{-1}\big]_{i,\ast}$ denotes the $i$ th row of $\Psi^{-1}$.
+
+\subsection{ Prediction horizon $N = 1$:}
+When the prediction horizon is $N = 1$, $\Psi = 1$ since $h_{0}=1$ and  
+\begin{align*}
+\mathcal{H}(z) = 1 + \mathcal{H}_{1}^{\prime}(z) = 1 + C(zI- A)^{-1}B = H(z)
+\end{align*}
+and the moving horizon implementation is 
+\begin{equation}
+	\tilde{y}(k) =  q_{\tilde{\mathbb{U}}^{N}} \big[{H}(z)  {w}(k) - \big[ {H}(z) -I\big] {y}^{\ast}(k)\big].
+\end{equation}
+and $ q_{\tilde{\mathbb{U}}^{N}}$ becomes scalar (direct) quantisation.
+
+\subsection{Prediction horizon $N=2$:}
+When the prediction horizon is $N = 1$, $\Psi = \begin{bmatrix}
+h_{0} & 0 \\ h_{1} & h_{0}
+\end{bmatrix}$ and thus  $\Psi^{-1} = \frac{1}{h_{0}^{2}} \begin{bmatrix} h_{0} & - h_{1} \\ 0 & h_{0} \end{bmatrix}  = \begin{bmatrix} 1 & - h_{1} \\ 0 & 1 \end{bmatrix}$ since $h_{0} = 1$. We get, 
+\begin{align*}
+	\mathcal{H}_{1}^{\prime}(z) &=  \begin{bmatrix}
+		1 & -h1
+	\end{bmatrix} \Gamma(zI- A)^{-1}B = (C - h_{1}CA) (zI- A)^{-1}B =H(z)  - h_{1}CA(zI- A)^{-1}B -1 \\
+	\mathcal{H}_{2}^{\prime}(z) &=  \begin{bmatrix}
+		0 & h_{0}
+	\end{bmatrix} \Gamma(zI- A)^{-1}B = CA(zI- A)^{-1}B
+\end{align*}
+
+
+Then
+
+\begin{align*}
+\mathcal{H}(z) = \begin{bmatrix}
+1 + \mathcal{H}_{1}^{\prime}(z) & 0\\
+ \mathcal{H}_{2}^{\prime}(z) &1
+\end{bmatrix} = \begin{bmatrix}	
+1 + \mathcal{H}_{1}^{\prime}(z) & 0\\
+ \mathcal{H}_{2}^{\prime}(z) &1
+\end{bmatrix}
+\end{align*}
+and the moving horizon implementation is 
+\begin{align*}
+	\tilde{y}(k)  &=[1, 0] \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \big[\Psi \bigl\{ \mathcal{H}(z)  \mathbf{w}(k) - \big[ \mathcal{H}(z) -I\big] \mathbf{y}^{\ast}(k)\bigr\} \big] \\
+&=[1, 0] \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \big[\Psi  \mathcal{H}(z)  \mathbf{w}(k) - \Psi  \big[ \mathcal{H}(z) -I\big] \mathbf{y}^{\ast}(k) \big] \\
+&=[1, 0] \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \big[\Psi  \mathcal{H}(z) \big( \mathbf{w}(k) - \mathbf{y}^{\ast}(k) \big) + \Psi  \mathbf{y}^{\ast}(k) \big] \\
+&=[1, 0] \Psi^{-1} q_{\tilde{\mathbb{U}}^{N}} \Bigg[ \begin{bmatrix}
+H(z) - h_{1}CA(zI-A)^{-1}B & 0 \\ h_{1} H(z) - (h_{1}^{2} - 1) CA (zI-A)^{-1} B & 1
+\end{bmatrix} \mathbf{w}(k)+ \begin{bmatrix}
+ 1 + h_{1}CA(zI-A)^{-1}B - H(z) & 0 \\  (h_{1}^{2} - 1) CA (zI-A)^{-1} B + h_{1} (1-  H(z))  & 0
+\end{bmatrix} \mathbf{y}^{\ast}(k) \Bigg]
+\end{align*}
+
+
 
 
 % \begin{figure}[!h]

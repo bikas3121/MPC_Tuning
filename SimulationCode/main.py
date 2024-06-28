@@ -111,8 +111,8 @@ match 3:
     
     case 3: # LPF derived from optimal NTF Optimal NTF
         # Optimal NTF
-        nsf_num = scipy.io.loadmat('Optimal_NSF/NSF_num_100kHz_1MHz_46|5Mueta.mat')
-        nsf_den = scipy.io.loadmat('Optimal_NSF/NSF_den_100kHz_1MHz_46|5Mueta.mat')
+        nsf_num = scipy.io.loadmat('Optimal_NSF/NSF_num_100kHz_1MHz_10|1Mueta.mat')
+        nsf_den = scipy.io.loadmat('Optimal_NSF/NSF_den_100kHz_1MHz_10|1Mueta.mat')
         bn = nsf_num['br']
         an = nsf_den['ar']
 

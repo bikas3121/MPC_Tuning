@@ -18,4 +18,7 @@
 \contentsline {subsection}{\numberline {8.1}Simulation 1:}{9}{subsection.8.1}%
 \contentsline {subsection}{\numberline {8.2}Simulation 2:}{9}{subsection.8.2}%
 \contentsline {section}{\numberline {9}NSD performance: ENOB vs $\gamma _{\eta }$}{10}{section.9}%
-\contentsline {section}{\numberline {10}Scribble}{11}{section.10}%
+\contentsline {section}{\numberline {10}Closed Form Solution:}{11}{section.10}%
+\contentsline {subsection}{\numberline {10.1} Prediction horizon $N = 1$:}{11}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Prediction horizon $N=2$:}{11}{subsection.10.2}%
+\contentsline {section}{\numberline {11}Scribble}{13}{section.11}%

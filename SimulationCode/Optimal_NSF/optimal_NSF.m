@@ -32,7 +32,7 @@ mu_e  = sdpvar(1);
 
 
 % Constraints
-mu_eta = 1.5^2;
+mu_eta = 2^2;
 MA = [Ah*Pf + Bh*Wf , Ah; L ,Pg*Ah];
 MB = [Bh ; Wg];
 MC = [Ch*Pf + Dh*Wf ,  Ch];

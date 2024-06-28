@@ -1,3 +1,26 @@
-\begin{thebibliography}{}
+\begin{thebibliography}{1}
+
+\bibitem{Shuichi2017}
+Shuichi Ohno and M.~Rizwan Tariq.
+\newblock Optimization of noise shaping filter for quantizer with error
+  feedback.
+\newblock {\em IEEE Transactions on Circuits and Systems I: Regular Papers},
+  64(4):918--930, 2017.
+
+\bibitem{oppenheim99}
+Alan~V. Oppenheim, Ronald~W. Schafer, and John~R. Buck.
+\newblock {\em Discrete-Time Signal Processing}.
+\newblock Prentice-hall Englewood Cliffs, second edition, 1999.
+
+\bibitem{Izumi1998}
+Izumi Masubuchi, Atsumi Ohara, and Nobuhide Suda.
+\newblock Lmi-based controller synthesis: A unified formulation and solution.
+\newblock {\em International Journal of Robust and Nonlinear Control},
+  8(8):669--686, 1998.
+
+\bibitem{goodwin2003moving}
+Graham~C Goodwin, Daniel~E Quevedo, and David McGrath.
+\newblock Moving-horizon optimal quantizer for audio signals.
+\newblock {\em Journal of the Audio Engineering Society}, 51(3):138--149, 2003.
 
 \end{thebibliography}
